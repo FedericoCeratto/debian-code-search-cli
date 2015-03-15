@@ -19,11 +19,15 @@ rate_limit = 1.0/20  # Rate-limit queries per second
 
 
 def say(quiet, msg):
+    """Print messages to stderr
+    """
     if not quiet:
         sys.stderr.write("%s\n" % msg)
 
 
 def fetch_json(path):
+    """Fetch a JSON document from codesearch
+    """
     r = requests.get("http://codesearch.debian.net/%s" % path)
     if r.ok:
         return r.json()
@@ -33,6 +37,8 @@ def fetch_json(path):
 
 
 def print_results(chunk, print_linenum):
+    """Print search results
+    """
     print('path ' + chunk['path'])
     for item in ('ctxp2', 'ctxp1', 'context', 'ctxn1', 'ctxn2'):
         line = chunk[item]
@@ -48,7 +54,8 @@ def print_results(chunk, print_linenum):
 
 
 def run_websocket_query(args):
-    """Run query on websocket"""
+    """Run query on websocket
+    """
 
     printed_chunks = set()
     ws = create_connection(WS_URL)
