@@ -101,6 +101,31 @@ def parse_args():
     return ap.parse_args()
 
 
+def fetch_json_pages(query_id, printed_chunks, args):
+    """Fetch JSONs page and print the results
+    """
+    for page_num in xrange(0, args.max_pages):
+        page = fetch_json("results/%s/page_%d.json" % (query_id, page_num))
+        if page is None:
+            break
+
+        printed = False
+        for chunk in page:
+            if (chunk['path'], chunk['line']) not in printed_chunks:
+                print_results(chunk, args.linenumber, args.print_filenames)
+                printed = True
+
+        if sys.stdout.isatty():
+            # Implement pagination (only if at least one chunk was printed)
+            if printed:
+                print("----- Press Enter to continue or Ctrl-C to exit -----")
+                raw_input()
+
+        else:
+            # The output is being piped somewhere: go through all the pages
+            time.sleep(rate_limit)
+
+
 def main():
     args = parse_args()
 
@@ -108,22 +133,7 @@ def main():
     last_ws_chunk, printed_chunks = run_websocket_query(args)
     query_id = last_ws_chunk['QueryId']
 
-    # Fetch a JSON page and print the results
-    for page_num in xrange(0, args.max_pages):
-        page = fetch_json("results/%s/page_%d.json" % (query_id, page_num))
-        if page is None:
-            break
-
-        for p in page:
-            if (p['path'], p['line']) not in printed_chunks:
-                print_results(p, args.linenumber, args.print_filenames)
-
-        if sys.stdout.isatty():
-            print("----- Press Enter to continue or Ctrl-C to exit -----")
-            raw_input()
-
-        else:  # the output is being piped somewhere: go through all the pages
-            time.sleep(rate_limit)
+    fetch_json_pages(query_id, printed_chunks, args)
 
     say(args.quiet, "--\nFiles grepped: %d" % last_ws_chunk['FilesTotal'])
 
