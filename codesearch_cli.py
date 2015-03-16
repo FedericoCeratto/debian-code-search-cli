@@ -36,10 +36,13 @@ def fetch_json(path):
         say(False, "Fetch failure: %s" % r.reason)
 
 
-def print_results(chunk, print_linenum):
+def print_results(chunk, print_linenum, print_only_filenames):
     """Print search results
     """
     print('path ' + chunk['path'])
+    if print_only_filenames:
+        return
+
     for item in ('ctxp2', 'ctxp1', 'context', 'ctxn1', 'ctxn2'):
         line = chunk[item]
         line = line.encode('utf-8')
@@ -54,7 +57,7 @@ def print_results(chunk, print_linenum):
 
 
 def run_websocket_query(args):
-    """Run query on websocket
+    """Run initial query on websocket
     """
 
     printed_chunks = set()
@@ -74,7 +77,7 @@ def run_websocket_query(args):
             sys.exit(1)
 
         if 'package' in chunk:
-            print_results(chunk, args.linenumber)
+            print_results(chunk, args.linenumber, args.print_filenames)
             printed_chunks.add((chunk['path'], chunk['line']))
 
         elif 'FilesTotal' in chunk:
@@ -82,13 +85,19 @@ def run_websocket_query(args):
             return chunk, printed_chunks
 
 
-def main():
+def parse_args():
     ap = ArgumentParser()
     ap.add_argument('searchstring')
     ap.add_argument('--max-pages', type=int, default=20)
     ap.add_argument('-q', '--quiet', action='store_true')
     ap.add_argument('-l', '--linenumber', action='store_true')
-    args = ap.parse_args()
+    ap.add_argument('-n', '--print-filenames', action='store_true',
+                    help='Print only matching filenames, no contents')
+    return ap.parse_args()
+
+
+def main():
+    args = parse_args()
 
     last_ws_chunk, printed_chunks = run_websocket_query(args)
     query_id = last_ws_chunk['QueryId']
@@ -101,7 +110,7 @@ def main():
         for p in page:
             if (p['path'], p['line']) not in printed_chunks:
                 printed_chunks.add((p['path'], p['line']))
-                print_results(p, args.linenumber)
+                print_results(p, args.linenumber, args.print_filenames)
 
         if sys.stdout.isatty():
             print("----- Press Enter to continue or Ctrl-C to exit -----")
