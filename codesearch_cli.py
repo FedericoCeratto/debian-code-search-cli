@@ -17,6 +17,7 @@ import time
 
 WS_URL = "ws://codesearch.debian.net/instantws"
 rate_limit = 1.0/20  # Rate-limit queries per second
+PATHCOLOR = 33
 
 
 def say(quiet, msg):
@@ -37,10 +38,16 @@ def fetch_json(path):
         say(False, "Fetch failure: %s" % r.reason)
 
 
-def print_results(chunk, print_linenum, print_only_filenames):
+def print_results(chunk, print_linenum, print_only_filenames, nocolor):
     """Print search results
     """
-    print('path ' + chunk['path'])
+    pathline = "path: %s" % chunk['path']
+    if nocolor:
+        print(pathline)
+
+    else:
+        print("\033[%dm%s\033[0m" % (PATHCOLOR, pathline))
+
     if print_only_filenames:
         return
 
@@ -85,7 +92,7 @@ def run_websocket_query(args):
                 return chunk, printed_chunks
 
         elif 'package' in chunk:
-            print_results(chunk, args.linenumber, args.print_filenames)
+            print_results(chunk, args.linenumber, args.print_filenames, args.nocolor)
             printed_chunks.add((chunk['path'], chunk['line']))
 
 
@@ -96,9 +103,15 @@ def parse_args():
     ap.add_argument('--max-pages', type=int, default=20)
     ap.add_argument('-q', '--quiet', action='store_true')
     ap.add_argument('-l', '--linenumber', action='store_true')
+    ap.add_argument('--nocolor', action='store_true',
+                    help="Do not colorize output")
     ap.add_argument('-n', '--print-filenames', action='store_true',
                     help='Print only matching filenames, no contents')
-    return ap.parse_args()
+    args = ap.parse_args()
+    if not sys.stdout.isatty():
+        args.nocolor = True
+
+    return args
 
 
 def fetch_json_pages(query_id, printed_chunks, args):
@@ -112,7 +125,7 @@ def fetch_json_pages(query_id, printed_chunks, args):
         printed = False
         for chunk in page:
             if (chunk['path'], chunk['line']) not in printed_chunks:
-                print_results(chunk, args.linenumber, args.print_filenames)
+                print_results(chunk, args.linenumber, args.print_filenames, args.nocolor)
                 printed = True
 
         if sys.stdout.isatty():
