@@ -1,15 +1,16 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python
 
 """
-Debian Code Search http://codesearch.debian.net/
+CLI tool for Debian Code Search (http://codesearch.debian.net/)
 
-CLI search tool
 
 """
+
+
 from argparse import ArgumentParser
 from websocket import create_connection
-import requests
 import json
+import requests
 import sys
 import time
 
@@ -73,16 +74,20 @@ def run_websocket_query(args):
         try:
             chunk = json.loads(chunk)
         except Exception as e:
-            say(False, e)
+            say(False, "Unable to parse JSON document %s" % e)
             sys.exit(1)
 
-        if 'package' in chunk:
+        if u'Type' in chunk and chunk[u'Type'] == u'progress':
+            # Progress update received
+            if chunk[u'FilesTotal'] == chunk[u'FilesProcessed']:
+                # The query has been completed
+                ws.close()
+                return chunk, printed_chunks
+
+        elif 'package' in chunk:
             print_results(chunk, args.linenumber, args.print_filenames)
             printed_chunks.add((chunk['path'], chunk['line']))
 
-        elif 'FilesTotal' in chunk:
-            ws.close()
-            return chunk, printed_chunks
 
 
 def parse_args():
@@ -99,9 +104,11 @@ def parse_args():
 def main():
     args = parse_args()
 
+    # Execute query over a websocket
     last_ws_chunk, printed_chunks = run_websocket_query(args)
     query_id = last_ws_chunk['QueryId']
 
+    # Fetch a JSON page and print the results
     for page_num in xrange(0, args.max_pages):
         page = fetch_json("results/%s/page_%d.json" % (query_id, page_num))
         if page is None:
@@ -109,7 +116,6 @@ def main():
 
         for p in page:
             if (p['path'], p['line']) not in printed_chunks:
-                printed_chunks.add((p['path'], p['line']))
                 print_results(p, args.linenumber, args.print_filenames)
 
         if sys.stdout.isatty():
@@ -120,9 +126,6 @@ def main():
             time.sleep(rate_limit)
 
     say(args.quiet, "--\nFiles grepped: %d" % last_ws_chunk['FilesTotal'])
-    if len(printed_chunks) != last_ws_chunk['Results']:
-        say(args.quiet, "Results: %d" % last_ws_chunk['Results'])
-        say(args.quiet, "Printed: %d" % len(printed_chunks))
 
 
 if __name__ == '__main__':
