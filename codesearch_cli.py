@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 """
-CLI tool for Debian Code Search (http://codesearch.debian.net/)
+CLI tool for Debian Code Search (https://codesearch.debian.net/)
 
 
 """
@@ -15,7 +15,7 @@ import sys
 import time
 
 
-WS_URL = "ws://codesearch.debian.net/instantws"
+WS_URL = "wss://codesearch.debian.net/instantws"
 rate_limit = 1.0/20  # Rate-limit queries per second
 PATHCOLOR = 33
 
@@ -30,7 +30,7 @@ def say(quiet, msg):
 def fetch_json(path):
     """Fetch a JSON document from codesearch
     """
-    r = requests.get("http://codesearch.debian.net/%s" % path)
+    r = requests.get("https://codesearch.debian.net/%s" % path)
     if r.ok:
         return r.json()
 
